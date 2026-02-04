@@ -21,7 +21,7 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             --user $(id -u):$(id -g) \
-            zmkfirmware/zmk-build-arm:3.5 \
+            zmkfirmware/zmk-build-arm:latest \
             /bin/bash -c "
             echo '=== Kiểm tra cấu trúc ==='
             find config -type f 2>/dev/null | head -10
