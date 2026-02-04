@@ -9,15 +9,51 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Build Firmware
-        uses: zmkfirmware/zmk-build-action@v2
+      - name: Build with ZMK Docker
+        run: |
+          mkdir -p firmware
+
+          # Sử dụng Docker command đơn giản hơn
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            --user $(id -u):$(id -g) \
+            zmkfirmware/zmk-build-arm:3.5 \
+            /bin/bash -c "
+            echo '=== Kiểm tra cấu trúc ==='
+            find config -type f 2>/dev/null | head -10
+            
+            echo '=== Build firmware ==='
+            # Sử dụng script build có sẵn trong ZMK
+            cd /tmp
+            git clone --depth 1 --branch main https://github.com/zmkfirmware/zmk.git zmk_dist
+            cd zmk_dist
+            ./build.sh app/boards/shields/filco_majestouch_tkl nice_nano_v2 \
+              -DZMK_CONFIG=/workspace/config
+            "
+
+      - name: Kiểm tra file output
+        run: |
+          echo "=== Tìm file firmware ==="
+          find . -name "*.uf2" -o -name "*.hex" -o -name "*.bin" | head -10
+
+          # Copy file firmware nếu có
+          if ls firmware/*.uf2 1> /dev/null 2>&1; then
+            echo "✅ Tìm thấy firmware trong thư mục firmware"
+          else
+            # Thử tìm trong thư mục build
+            mkdir -p firmware
+            find . -name "*.uf2" -exec cp {} firmware/ \;
+            echo "Đã copy file firmware"
+          fi
+
+          ls -la firmware/ 2>/dev/null || echo "Chưa có file firmware"
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
         with:
-          board: nice_nano_v2
-          shield: filco_majestouch_tkl
-          directory: config
-          artifact-name: firmware
+          name: firmware
+          path: firmware/
