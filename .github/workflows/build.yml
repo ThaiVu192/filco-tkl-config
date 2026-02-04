@@ -23,6 +23,7 @@ jobs:
           west zephyr-export
 
       - name: Build ZMK (debug + ensure shield found)
+        shell: bash -l {0}
         run: |
           set -euo pipefail
           set -x
