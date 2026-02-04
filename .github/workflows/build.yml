@@ -8,53 +8,49 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: docker.io/zmkfirmware/zmk-build-arm:3.2
-      options: --user root
-
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          path: /github/workspace
 
-      - name: Build
+      - name: Build with Docker
         run: |
-          cd /github/workspace
+          # Tạo thư mục output
+          mkdir -p firmware
 
-          # Kiểm tra config
-          echo "Checking config..."
-          ls -la config/boards/shields/filco_majestouch_tkl/
+          # Chạy Docker build
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            zmkfirmware/zmk-build-arm:3.2 \
+            /bin/bash -c "
+            # Kiểm tra cấu trúc thư mục
+            echo '=== Kiểm tra cấu trúc ==='
+            ls -la /workspace/
+            ls -la /workspace/config/
+            ls -la /workspace/config/boards/shields/filco_majestouch_tkl/
+            
+            # Clone ZMK
+            cd /tmp
+            git clone --depth 1 https://github.com/zmkfirmware/zmk.git
+            cd zmk
+            
+            # Setup west
+            west init -l app/
+            west update
+            
+            # Build
+            echo '=== Building firmware ==='
+            west build -b nice_nano app -- \
+              -DSHIELD=filco_majestouch_tkl \
+              -DZMK_CONFIG=/workspace/config
+            
+            # Copy firmware
+            echo '=== Copying firmware ==='
+            cp build/zephyr/zmk.uf2 /workspace/firmware/filco_tkl.uf2
+            echo '✅ Build thành công!'
+            "
 
-          # Clone ZMK tươi mới
-          cd /tmp
-          git clone --depth 1 https://github.com/zmkfirmware/zmk.git
-          cd zmk
-
-          # Setup
-          west init -l app/
-          west update
-
-          # Build
-          echo "Building firmware..."
-          west build -b nice_nano app -- \
-            -DSHIELD=filco_majestouch_tkl \
-            -DZMK_CONFIG=/github/workspace/config \
-            --pristine
-
-          # Copy output
-          mkdir -p /github/workspace/firmware
-          if [ -f "build/zephyr/zmk.uf2" ]; then
-            cp build/zephyr/zmk.uf2 /github/workspace/firmware/
-            echo "✅ Build successful!"
-          else
-            echo "❌ Build failed - no firmware file"
-            ls -la build/zephyr/
-            exit 1
-          fi
-
-      - name: Upload Artifacts
+      - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: /github/workspace/firmware
+          path: firmware/
