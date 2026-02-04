@@ -16,45 +16,40 @@ jobs:
         run: |
           mkdir -p firmware
 
-          echo "=== Kiểm tra cấu trúc config ==="
-          find config/ -type f | head -20
-
-          # Build với Docker
           docker run --rm \
             -v "$PWD:/workspace" \
             -w /workspace \
             --user $(id -u):$(id -g) \
             zmkfirmware/zmk-build-arm:3.5 \
             /bin/bash -c "
-            set -e  # Dừng nếu có lỗi
-            
+            set -e
+
             echo '=== Clone ZMK ==='
             cd /tmp
-            # Clone ZMK với --recursive để lấy submodules
             git clone --depth 1 --recursive https://github.com/zmkfirmware/zmk.git
             cd zmk
-            
+
             echo '=== Initialize west workspace ==='
-            west init -l app/ --mf zephyr/west.yml
+            west init -l app/
             west update
-            
+
+            echo '=== Export Zephyr CMake package ==='
+            west zephyr-export || true
+
             echo '=== Kiểm tra shield ==='
-            # Kiểm tra xem shield có tồn tại không
             if [ -d \"app/boards/shields/filco_majestouch_tkl\" ]; then
               echo '✅ Tìm thấy shield filco_majestouch_tkl'
             else
               echo '❌ Shield filco_majestouch_tkl không tồn tại trong ZMK'
-              echo 'Các shields có sẵn:'
               find app/boards/shields -maxdepth 1 -type d | head -20
             fi
-            
+
             echo '=== Build firmware ==='
-            # Build với config custom
             west build -p auto -b nice_nano_v2 app -- \
               -DSHIELD=filco_majestouch_tkl \
               -DZMK_CONFIG=/workspace/config \
               -DCONF_FILE=/workspace/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf
-            
+
             echo '=== Copy firmware ==='
             if [ -f build/zephyr/zmk.uf2 ]; then
               cp build/zephyr/zmk.uf2 /workspace/firmware/filco_tkl.uf2
@@ -62,7 +57,6 @@ jobs:
               ls -lh /workspace/firmware/
             else
               echo '❌ Không tìm thấy file firmware sau khi build'
-              echo 'Kiểm tra thư mục build:'
               ls -la build/zephyr/ 2>/dev/null || echo 'Thư mục build không tồn tại'
               exit 1
             fi
