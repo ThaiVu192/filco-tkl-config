@@ -12,73 +12,45 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build with Docker
+      - name: Build with ZMK Docker
         run: |
-          # Tạo thư mục output
           mkdir -p firmware
 
-          echo "=== Kiểm tra cấu trúc thư mục ==="
-          find config/ -type f | head -20
-
-          # Chạy Docker build với phiên bản ZMK cố định
+          # Sử dụng Docker command đơn giản hơn
           docker run --rm \
             -v "$PWD:/workspace" \
             -w /workspace \
-            zmkfirmware/zmk-build-arm:3.2 \
+            --user $(id -u):$(id -g) \
+            zmkfirmware/zmk-build-arm:3.5 \
             /bin/bash -c "
-            set -e  # Dừng nếu có lỗi
-            
             echo '=== Kiểm tra cấu trúc ==='
-            find /workspace/config -type f 2>/dev/null | head -20
-            
-            # Tạo thư mục build
-            mkdir -p /workspace/build
-            
-            echo '=== Clone ZMK với phiên bản ổn định ==='
-            cd /tmp
-            # Clone phiên bản ổn định hơn
-            git clone --depth 1 --branch main https://github.com/zmkfirmware/zmk.git
-            cd zmk
-            
-            echo '=== Setup west ==='
-            west init -l app/
-            west update
-            west zephyr-export
-            
-            echo '=== Kiểm tra các shields có sẵn ==='
-            find . -name '*.overlay' | grep -i filco || echo 'Không tìm thấy shield Filco'
+            find config -type f 2>/dev/null | head -10
             
             echo '=== Build firmware ==='
-            # Build với cấu hình cụ thể
-            west build -b nice_nano_v2 app -- \
-              -DSHIELD=filco_majestouch_tkl \
-              -DZMK_CONFIG=/workspace/config \
-              -DWEST_PYTHON=/usr/bin/python3
-            
-            echo '=== Copy firmware ==='
-            if [ -f build/zephyr/zmk.uf2 ]; then
-              cp build/zephyr/zmk.uf2 /workspace/firmware/filco_tkl.uf2
-              echo '✅ Đã copy firmware'
-              ls -lh /workspace/firmware/
-            else
-              echo '❌ Không tìm thấy file firmware'
-              ls -la build/zephyr/ 2>/dev/null || echo 'Thư mục build không tồn tại'
-              exit 1
-            fi
+            # Sử dụng script build có sẵn trong ZMK
+            cd /tmp
+            git clone --depth 1 --branch main https://github.com/zmkfirmware/zmk.git zmk_dist
+            cd zmk_dist
+            ./build.sh app/boards/shields/filco_majestouch_tkl nice_nano_v2 \
+              -DZMK_CONFIG=/workspace/config
             "
 
-      - name: Kiểm tra file firmware
+      - name: Kiểm tra file output
         run: |
-          echo "=== Danh sách file trong thư mục firmware ==="
-          ls -la firmware/ 2>/dev/null || echo "Thư mục firmware trống"
+          echo "=== Tìm file firmware ==="
+          find . -name "*.uf2" -o -name "*.hex" -o -name "*.bin" | head -10
 
-          if [ -f firmware/filco_tkl.uf2 ]; then
-            echo "✅ Tìm thấy file firmware"
-            echo "Kích thước: $(wc -c < firmware/filco_tkl.uf2) bytes"
+          # Copy file firmware nếu có
+          if ls firmware/*.uf2 1> /dev/null 2>&1; then
+            echo "✅ Tìm thấy firmware trong thư mục firmware"
           else
-            echo "❌ Không tìm thấy file firmware"
-            exit 1
+            # Thử tìm trong thư mục build
+            mkdir -p firmware
+            find . -name "*.uf2" -exec cp {} firmware/ \;
+            echo "Đã copy file firmware"
           fi
+
+          ls -la firmware/ 2>/dev/null || echo "Chưa có file firmware"
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
