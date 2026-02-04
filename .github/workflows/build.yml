@@ -21,43 +21,76 @@ jobs:
             -w /workspace \
             --user $(id -u):$(id -g) \
             zmkfirmware/zmk-build-arm:3.5 \
-            /bin/bash -c "
-            set -e
+            /bin/bash -ex -c "
+            set -euo pipefail
+            set -x
+
+            echo '=== Env & tools ==='
+            cmake --version || true
+            ninja --version || true
+            python3 --version
+            python3 -m pip show west || true
 
             echo '=== Clone ZMK ==='
             cd /tmp
+            rm -rf zmk
             git clone --depth 1 --recursive https://github.com/zmkfirmware/zmk.git
             cd zmk
+            echo 'ZMK commit:' $(git rev-parse --short HEAD)
+            echo 'Branch:' $(git rev-parse --abbrev-ref HEAD)
+
+            echo '=== Inspect app & zephyr ==='
+            ls -la app/ | sed -n '1,200p'
+            ls -la zephyr/ | sed -n '1,50p'
 
             echo '=== Initialize west workspace ==='
             west init -l app/
-            west update
+            west update || (echo 'west update failed'; exit 1)
 
-            echo '=== Export Zephyr CMake package ==='
+            echo '=== Export Zephyr env ==='
             west zephyr-export || true
+            echo 'ZEPHYR_BASE='${ZEPHYR_BASE:-'(empty)'}
+            # If ZEPHYR_BASE not auto-exported, set it explicitly:
+            export ZEPHYR_BASE=$(west topdir)/zephyr || true
+            echo 'After export ZEPHYR_BASE='${ZEPHYR_BASE:-'(still empty)'}
 
-            echo '=== Kiểm tra shield ==='
-            if [ -d \"app/boards/shields/filco_majestouch_tkl\" ]; then
-              echo '✅ Tìm thấy shield filco_majestouch_tkl'
+            echo '=== Check target files ==='
+            if [ -f app/CMakeLists.txt ]; then
+              echo '✅ app/CMakeLists.txt exists'
             else
-              echo '❌ Shield filco_majestouch_tkl không tồn tại trong ZMK'
-              find app/boards/shields -maxdepth 1 -type d | head -20
+              echo '❌ app/CMakeLists.txt MISSING'
             fi
 
-            echo '=== Build firmware ==='
+            echo '=== Check shield in workspace ==='
+            if [ -d app/boards/shields/filco_majestouch_tkl ]; then
+              echo '✅ shield directory exists'
+              ls -la app/boards/shields/filco_majestouch_tkl
+            else
+              echo '❌ shield directory NOT found under app/boards/shields'
+              find app/boards -maxdepth 2 -type d | sed -n '1,200p'
+            fi
+
+            echo '=== Check provided config files (mounted workspace) ==='
+            ls -la /workspace/config/boards/shields/filco_majestouch_tkl || true
+            cat /workspace/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf || true
+
+            echo '=== Start build (verbose) ==='
+            # Save full output to /workspace/build_full.log for inspection
+            # Use -v on west to get more info
             west build -p auto -b nice_nano_v2 app -- \
               -DSHIELD=filco_majestouch_tkl \
               -DZMK_CONFIG=/workspace/config \
-              -DCONF_FILE=/workspace/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf
+              -DCONF_FILE=/workspace/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf \
+              -v 2>&1 | tee /workspace/build_full.log || { echo '=== Build failed, tail of log ==='; tail -n 200 /workspace/build_full.log; exit 1; }
 
-            echo '=== Copy firmware ==='
+            echo '=== Copy firmware if exists ==='
             if [ -f build/zephyr/zmk.uf2 ]; then
               cp build/zephyr/zmk.uf2 /workspace/firmware/filco_tkl.uf2
-              echo '✅ Đã copy firmware thành công'
+              echo '✅ Copied firmware'
               ls -lh /workspace/firmware/
             else
-              echo '❌ Không tìm thấy file firmware sau khi build'
-              ls -la build/zephyr/ 2>/dev/null || echo 'Thư mục build không tồn tại'
+              echo '❌ No zmk.uf2 after build'
+              ls -la build/zephyr || true
               exit 1
             fi
             "
