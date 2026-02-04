@@ -73,7 +73,7 @@ jobs:
           fi
 
           # Try building with a list of possible board names (fallbacks)
-          BOARDS="nice_nano_v2 nice_nano nice_nano_v1"
+          BOARDS="nice_nano"
           BUILD_OK=1
           for B in $BOARDS; do
             echo "=== Try build with BOARD=$B and SHIELD=filco_majestouch_tkl ==="
