@@ -22,10 +22,87 @@ jobs:
           west update
           west zephyr-export
 
-      - name: Build firmware
+      - name: Build ZMK (debug + ensure shield found)
         run: |
-          west build -p auto -b nice_nano zmk/app -- \
-            -DSHIELD=filco_majestouch_tkl
+          set -euo pipefail
+          set -x
+
+          echo "GITHUB_WORKSPACE = ${GITHUB_WORKSPACE:-(empty)}"
+          echo "PWD = $(pwd)"
+
+          echo "=== show west topdir & export zephyr ==="
+          west zephyr-export || true
+          echo "west topdir: $(west topdir 2>/dev/null || echo '(no west)')"
+          echo "ZEPHYR_BASE=${ZEPHYR_BASE:-(empty)}"
+
+          echo "=== list zmk/app boards (where ZMK normally looks) ==="
+          ls -la zmk/app/boards || true
+          echo "=== shields under zmk/app/boards/shields ==="
+          ls -la zmk/app/boards/shields || true
+
+          echo "=== list your repo-mounted config (should contain your shield) ==="
+          ls -la ${GITHUB_WORKSPACE}/config || true
+          ls -la ${GITHUB_WORKSPACE}/config/boards/shields || true
+          echo "=== show files for filco shield in repo config ==="
+          ls -la ${GITHUB_WORKSPACE}/config/boards/shields/filco_majestouch_tkl || true
+          echo "=== show .conf (if exists) ==="
+          if [ -f ${GITHUB_WORKSPACE}/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf ]; then
+            sed -n '1,200p' ${GITHUB_WORKSPACE}/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf || true
+          fi
+
+          # Ensure ZMK_CONFIG env so ZMK cmake helper can find your config folder
+          export ZMK_CONFIG="${GITHUB_WORKSPACE}/config"
+          echo "Exported ZMK_CONFIG=$ZMK_CONFIG"
+
+          # Ensure west workspace initialized from config (if not already)
+          if [ ! -d .west ]; then
+            echo "No .west in workspace — init with local config"
+            west init -l config || true
+            west update || true
+            west zephyr-export || true
+          fi
+
+          # If shield not present in zmk/app/boards/shields, copy it there as a fallback
+          if [ ! -d zmk/app/boards/shields/filco_majestouch_tkl ]; then
+            echo "Shield not found under zmk/app/boards/shields — copying from repo config as fallback"
+            mkdir -p zmk/app/boards/shields
+            cp -r ${GITHUB_WORKSPACE}/config/boards/shields/filco_majestouch_tkl zmk/app/boards/shields/ || true
+            echo "After copy, listing:"
+            ls -la zmk/app/boards/shields/filco_majestouch_tkl || true
+          fi
+
+          # Try building with a list of possible board names (fallbacks)
+          BOARDS="nice_nano_v2 nice_nano nice_nano_v1"
+          BUILD_OK=1
+          for B in $BOARDS; do
+            echo "=== Try build with BOARD=$B and SHIELD=filco_majestouch_tkl ==="
+            if west build -p auto -b "$B" zmk/app -- \
+              -DSHIELD=filco_majestouch_tkl \
+              -DZMK_CONFIG="${ZMK_CONFIG}" \
+              -DCONF_FILE="${ZMK_CONFIG}/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf" 2>&1 | tee /tmp/build_try_${B}.log; then
+              echo "✅ Build succeeded with board $B"
+              BUILD_OK=0
+              # copy artifact if exists
+              if [ -f build/zephyr/zmk.uf2 ]; then
+                mkdir -p ${GITHUB_WORKSPACE}/firmware
+                cp build/zephyr/zmk.uf2 ${GITHUB_WORKSPACE}/firmware/filco_tkl_${B}.uf2
+                ls -lh ${GITHUB_WORKSPACE}/firmware || true
+              fi
+              break
+            else
+              echo "❌ Build failed with board $B — tail of log:"
+              tail -n 200 /tmp/build_try_${B}.log || true
+            fi
+          done
+
+          if [ $BUILD_OK -ne 0 ]; then
+            echo "=== ALL TRIES FAILED ==="
+            echo "Check available boards under Zephyr:"
+            find $(west topdir)/zephyr -maxdepth 4 -type d -name '*nice*' -print 2>/dev/null || true
+            echo "Also list zmk/app/boards/shields:"
+            ls -la zmk/app/boards/shields || true
+            exit 1
+          fi
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
