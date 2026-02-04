@@ -25,65 +25,87 @@ jobs:
             set -euo pipefail
             set -x
 
-            echo '=== Env & tools ==='
-            cmake --version || true
-            ninja --version || true
-            python3 --version
-            python3 -m pip show west || true
+            echo '=== Clean /tmp/zmk if any ==='
+            rm -rf /tmp/zmk
 
-            echo '=== Clone ZMK ==='
+            echo '=== Clone ZMK repo (full depth for safety) ==='
             cd /tmp
-            rm -rf zmk
-            git clone --depth 1 --recursive https://github.com/zmkfirmware/zmk.git
+            git clone https://github.com/zmkfirmware/zmk.git
             cd zmk
-            echo 'ZMK commit:' $(git rev-parse --short HEAD)
-            echo 'Branch:' $(git rev-parse --abbrev-ref HEAD)
+            echo 'ZMK commit:' $(git rev-parse --short HEAD) || true
+            echo 'Listing root:'
+            ls -la .
 
-            echo '=== Inspect app & zephyr ==='
-            ls -la app/ | sed -n '1,200p'
-            ls -la zephyr/ | sed -n '1,50p'
+            echo '=== Try to get zephyr via git submodules (if any) ==='
+            git submodule sync --recursive || true
+            git submodule update --init --recursive || true
+            echo 'After submodule update, check zephyr folder:'
+            if [ -d zephyr ]; then
+              echo '✅ zephyr present via submodule'
+            else
+              echo '❗ zephyr not present as submodule'
+            fi
+            ls -la | sed -n '1,200p'
 
-            echo '=== Initialize west workspace ==='
-            west init -l app/
-            west update || (echo 'west update failed'; exit 1)
+            echo '=== Initialize west workspace pointing to local app ==='
+            # tạo workspace app
+            west init -l app/ || { echo 'west init failed'; exit 1; }
+            # Nếu ZMK repo contains a manifest file for zephyr at zephyr/west.yml, try to use it:
+            if [ -f zephyr/west.yml ]; then
+              echo 'Found zephyr/west.yml in repo — re-init workspace using that manifest'
+              # Re-init with absolute manifest path (file://) so west uses correct file
+              rm -rf app/.west || true
+              west init -l app/ -m file:///tmp/zmk/zephyr/west.yml || true
+            fi
 
-            echo '=== Export Zephyr env ==='
+            echo '=== Run west update to fetch modules ==='
+            cd $(west topdir) || true
+            west update || true
+
+            echo '=== If zephyr still missing, clone Zephyr directly as fallback ==='
+            if [ ! -d zephyr ]; then
+              echo 'Cloning zephyr directly from upstream as fallback...'
+              git clone --depth 1 https://github.com/zephyrproject-rtos/zephyr.git zephyr || { echo 'Direct clone zephyr failed'; }
+            fi
+
+            echo '=== After all attempts, check zephyr presence ==='
+            if [ -d zephyr ]; then
+              echo '✅ zephyr is present at:' $(realpath zephyr)
+              ls -la zephyr | sed -n '1,80p'
+            else
+              echo '❌ zephyr STILL MISSING — aborting'
+              ls -la || true
+              exit 2
+            fi
+
+            echo '=== Export Zephyr env (zephyr base) ==='
             west zephyr-export || true
-            echo 'ZEPHYR_BASE='${ZEPHYR_BASE:-'(empty)'}
-            # If ZEPHYR_BASE not auto-exported, set it explicitly:
-            export ZEPHYR_BASE=$(west topdir)/zephyr || true
-            echo 'After export ZEPHYR_BASE='${ZEPHYR_BASE:-'(still empty)'}
+            export ZEPHYR_BASE=${ZEPHYR_BASE:-$(west topdir)/zephyr}
+            echo 'ZEPHYR_BASE='${ZEPHYR_BASE}
 
-            echo '=== Check target files ==='
+            echo '=== Show app dir & CMakeLists ==='
+            ls -la app || true
             if [ -f app/CMakeLists.txt ]; then
               echo '✅ app/CMakeLists.txt exists'
             else
-              echo '❌ app/CMakeLists.txt MISSING'
+              echo '❌ app/CMakeLists.txt MISSING - build will fail'
             fi
 
-            echo '=== Check shield in workspace ==='
-            if [ -d app/boards/shields/filco_majestouch_tkl ]; then
-              echo '✅ shield directory exists'
-              ls -la app/boards/shields/filco_majestouch_tkl
-            else
-              echo '❌ shield directory NOT found under app/boards/shields'
-              find app/boards -maxdepth 2 -type d | sed -n '1,200p'
-            fi
-
-            echo '=== Check provided config files (mounted workspace) ==='
+            echo '=== Show mounted config in workspace ==='
+            ls -la /workspace/config || true
+            echo 'Show shield conf:'
             ls -la /workspace/config/boards/shields/filco_majestouch_tkl || true
             cat /workspace/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf || true
 
-            echo '=== Start build (verbose) ==='
-            # Save full output to /workspace/build_full.log for inspection
-            # Use -v on west to get more info
+            echo '=== Start build (verbose). Full log to /workspace/build_full.log ==='
+            # run build and pipe to log
             west build -p auto -b nice_nano_v2 app -- \
               -DSHIELD=filco_majestouch_tkl \
               -DZMK_CONFIG=/workspace/config \
               -DCONF_FILE=/workspace/config/boards/shields/filco_majestouch_tkl/filco_majestouch_tkl.conf \
               -v 2>&1 | tee /workspace/build_full.log || { echo '=== Build failed, tail of log ==='; tail -n 200 /workspace/build_full.log; exit 1; }
 
-            echo '=== Copy firmware if exists ==='
+            echo '=== Copy firmware if built ==='
             if [ -f build/zephyr/zmk.uf2 ]; then
               cp build/zephyr/zmk.uf2 /workspace/firmware/filco_tkl.uf2
               echo '✅ Copied firmware'
