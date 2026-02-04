@@ -12,20 +12,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build with Docker
+      - name: Build with Docker (Zephyr 3.2)
         run: |
           docker run --rm \
             -v $PWD:/workspace \
             -w /workspace \
-            zmkfirmware/zmk-build-arm:3.2 \
+            ghcr.io/zmkfirmware/zmk-build-arm:3.2 \
             /bin/bash -c "
-            # Clone ZMK
+            # Tạo build script
+            cat > /tmp/build.sh << 'EOF2'
+            #!/bin/bash
+            set -e
+            
+            # Clone ZMK với branch ổn định
             cd /tmp
-            rm -rf zmk
             git clone --depth 1 --branch main https://github.com/zmkfirmware/zmk.git zmk
             cd zmk
             
-            # Setup west
+            # Init west
             west init -l app/
             west update
             
@@ -33,14 +37,23 @@ jobs:
             west build -b nice_nano app -- \
               -DSHIELD=filco_majestouch_tkl \
               -DZMK_CONFIG=/workspace/config \
-              -Wno-dev
+              -DBOARD_ROOT=/workspace
             
-            # Copy firmware
+            # Copy output
             mkdir -p /workspace/firmware
-            cp build/zephyr/zmk.uf2 /workspace/firmware/filco_tkl.uf2
+            if [ -f build/zephyr/zmk.uf2 ]; then
+              cp build/zephyr/zmk.uf2 /workspace/firmware/filco.uf2
+            elif [ -f build/zephyr/zephyr.uf2 ]; then
+              cp build/zephyr/zephyr.uf2 /workspace/firmware/filco.uf2
+            fi
+            EOF2
+            
+            chmod +x /tmp/build.sh
+            /tmp/build.sh
             "
 
       - name: Upload Artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: firmware
