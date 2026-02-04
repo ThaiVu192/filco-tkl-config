@@ -24,7 +24,7 @@ jobs:
 
       - name: Build firmware
         run: |
-          west build -p auto -b nice_nano_v2 zmk/app -- \
+          west build -p auto -b nice_nano zmk/app -- \
             -DSHIELD=filco_majestouch_tkl
 
       - name: Upload firmware
