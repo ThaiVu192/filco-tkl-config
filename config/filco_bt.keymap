@@ -1,15 +1,9 @@
-#include <behaviors.dtsi>
+#include <dt-bindings/zmk/behaviors.h>
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/outputs.h>
 
 / {
-    // Cấu hình đèn báo pin trên Scroll Lock (led_1)
-    // ZMK chưa hỗ trợ "Charging blinking" qua software nếu không có mạch sạc giao tiếp.
-    // Dưới đây là cấu hình nháy khi mất kết nối hoặc pin yếu.
-    behaviors {
-        // Có thể thêm custom behavior nếu cần
-    };
 
     keymap {
         compatible = "zmk,keymap";
