@@ -11,10 +11,14 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout repo
+      - name: Checkout config repo
+        uses: actions/checkout@v4
+
+      - name: Checkout ZMK
         uses: actions/checkout@v4
         with:
-          submodules: "recursive"
+          repository: zmkfirmware/zmk
+          path: zmk
 
       - name: Install system packages
         run: |
@@ -31,21 +35,17 @@ jobs:
           python3 -m pip install --upgrade pip
           pip3 install --upgrade west
 
-      - name: Init west workspace and update
+      - name: Build firmware
         run: |
-          west init -l
-          west update || true
-          west zephyr-export || true
+          west build \
+            -s zmk/app \
+            -b nice_nano \
+            -d build \
+            -- \
+            -DSHIELD=filco_bt \
+            -DZMK_CONFIG=$GITHUB_WORKSPACE/config
 
-      - name: Build firmware (nice_nano + filco_bt)
-        env:
-          BOARD: nice_nano
-          SHIELD: filco_bt
-        run: |
-          rm -rf build
-          west build -s zmk/app -b ${BOARD} -d build -- -DSHIELD=${SHIELD} -DZMK_CONFIG=./config
-
-      - name: Upload artifact
+      - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: zmk-firmware
