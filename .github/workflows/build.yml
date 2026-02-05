@@ -21,8 +21,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             git python3 python3-pip python3-venv \
-            gcc-arm-none-eabi gdb-multiarch cmake ninja-build \
-            device-tree-compiler dtc xz-utils unzip build-essential
+            gcc-arm-none-eabi gdb-multiarch \
+            cmake ninja-build \
+            device-tree-compiler \
+            xz-utils unzip build-essential
 
       - name: Install west
         run: |
@@ -32,18 +34,16 @@ jobs:
       - name: Init west workspace and update
         run: |
           west init -l
-          west update
+          west update || true
           west zephyr-export || true
 
-      - name: Install system packages
+      - name: Build firmware (nice_nano + filco_bt)
+        env:
+          BOARD: nice_nano
+          SHIELD: filco_bt
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            git python3 python3-pip python3-venv \
-            gcc-arm-none-eabi gdb-multiarch \
-            cmake ninja-build \
-            device-tree-compiler \
-            xz-utils unzip build-essential
+          rm -rf build
+          west build -s zmk/app -b ${BOARD} -d build -- -DSHIELD=${SHIELD} -DZMK_CONFIG=./config
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
