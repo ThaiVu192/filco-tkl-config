@@ -14,7 +14,7 @@ jobs:
 
       - name: ZMK Build Action
         # Sử dụng bản v2 hoặc v3 chính xác từ zmkfirmware
-        uses: zmkfirmware/zmk-build-action@v3
+        uses: zmkfirmware/zmk-build-action@v2
         with:
           build_matrix_path: "build.yaml"
           config_path: "config"
