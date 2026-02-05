@@ -39,7 +39,11 @@ jobs:
         run: west zephyr-export
 
       - name: West Build (Filco)
-        run: west build -s zmk/app -b nice_nano -- -DSHIELD=filco_bt -DZMK_CONFIG="${GITHUB_WORKSPACE}/config"
+        run: |
+          west build -s zmk/app -b nice_nano_v2 -- \
+          -DSHIELD=filco_bt \
+          -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
+          -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
 
       - name: Filco BT UF2
         run: cp build/zephyr/zmk.uf2 filco_bt_nice_nano_v2.uf2
