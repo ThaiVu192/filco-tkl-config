@@ -2,12 +2,19 @@
 #include <dt-bindings/zmk/keys.h>
 
 / {
+    behaviors {
+        kp: kp {
+            compatible = "zmk,behavior-key-press";
+            #binding-cells = <1>;
+        };
+    };
+
     keymap {
         compatible = "zmk,keymap";
 
         default_layer {
             bindings = <
-                /* Row 0 */
+                /* Row 0 (17 keys) */
                 &kp ESC   &kp N1    &kp N2    &kp N3    &kp N4    &kp N5    &kp N6    &kp N7    &kp N8    &kp N9    &kp N0    &kp MINUS &kp EQUAL &kp BSPC  &kp DEL   &kp NO     &kp NO
 
                 /* Row 1 */
@@ -20,7 +27,7 @@
                 &kp LSHIFT &kp Z    &kp X     &kp C     &kp V     &kp B     &kp N     &kp M     &kp COMMA &kp DOT   &kp SLASH &kp RSHIFT &kp NO   &kp NO    &kp NO     &kp NO     &kp NO
 
                 /* Row 4 */
-                &kp LCTRL &kp LGUI  &kp LALT  &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp RALT  &kp FN    &kp RCTRL &kp NO    &kp NO     &kp NO     &kp NO
+                &kp LCTRL &kp LGUI  &kp LALT  &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp SPACE &kp RALT  &kp RCTRL &kp NO    &kp NO    &kp NO     &kp NO     &kp NO
 
                 /* Row 5 */
                 &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO    &kp NO     &kp NO     &kp NO
