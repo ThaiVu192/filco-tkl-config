@@ -1,26 +1,51 @@
-name: Build ZMK Firmware
+name: Build
 
-on:
-  push:
-  workflow_dispatch:
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build ZMK
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    name: Build
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: ZMK Build Action
-        # Sử dụng bản v2 hoặc v3 chính xác từ zmkfirmware
-        uses: zmkfirmware/zmk-build-action@v2
+      - name: Cache west modules
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-zephyr-modules
         with:
-          build_matrix_path: "build.yaml"
-          config_path: "config"
+          path: |
+            modules/
+            tools/
+            zephyr/
+            bootloader/
+            zmk/
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('config/west.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
 
-      - name: Archive firmware
+      - name: West Init
+        run: west init -l config
+
+      - name: West Update
+        run: west update
+
+      - name: West Zephyr export
+        run: west zephyr-export
+
+      - name: West Build (Filco)
+        run: west build -s zmk/app -b nice_nano -- -DSHIELD=filco_bt -DZMK_CONFIG="${GITHUB_WORKSPACE}/config"
+
+      - name: Filco BT UF2
+        run: cp build/zephyr/zmk.uf2 filco_bt_nice_nano_v2.uf2
+
+      - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: build/zephyr/zmk.uf2
+          path: filco_bt_nice_nano_v2.uf2
