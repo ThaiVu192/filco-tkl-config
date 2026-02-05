@@ -1,33 +1,42 @@
-name: Build
+name: Build ZMK firmware
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: zmkfirmware/zmk-build-arm:stable
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
 
-      - name: West Init
-        run: west init -l config
-
-      - name: West Update
-        run: west update
-
-      - name: West Zephyr export
-        run: west zephyr-export
-
-      - name: West Build
+      - name: Install packages
         run: |
-          west build -p always -s zmk/app -b nice_nano -- \
-          -DSHIELD=filco_bt \
-          -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
-          -DEXTRA_DTS_BINDINGS="${GITHUB_WORKSPACE}/config/dts/bindings"
-      - name: Archive artifacts
+          sudo apt-get update
+          sudo apt-get install -y git python3 python3-pip python3-venv \
+            gcc-arm-none-eabi cmake ninja-build device-tree-compiler dtc xz-utils build-essential
+
+      - name: Install west
+        run: pip3 install --upgrade west
+
+      - name: Init west and update
+        run: |
+          west init -l
+          west update
+          west zephyr-export || true
+
+      - name: Build
+        run: |
+          BOARD=nice_nano
+          SHIELD=filco_bt
+          rm -rf build
+          west build -s zmk/app -b ${BOARD} -d build -- -DSHIELD=${SHIELD} -DZMK_CONFIG=./config
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
-          path: build/zephyr/zmk.uf2
+          name: zmk-firmware
+          path: build/zephyr/zephyr.hex

@@ -1,2 +1,4 @@
-config SHIELD_FILCO_BT
-    def_bool $(shields_list_contains,filco_bt)
+# app/boards/shields/filco_bt/Kconfig.shield
+menu "Filco BT shield"
+
+endmenu
