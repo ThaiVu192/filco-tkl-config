@@ -3,7 +3,7 @@ if SHIELD_FILCO_BT
 config ZMK_KEYBOARD_NAME
     default "Filco Wireless"
 
-# ÉP BUỘC BẬT DRIVER TẠI ĐÂY
+# Ép hệ thống nạp driver MCP230xx
 config I2C
     default y
 

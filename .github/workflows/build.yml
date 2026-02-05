@@ -21,9 +21,11 @@ jobs:
         run: west zephyr-export
 
       - name: West Build
-        # Dùng --pristine để dọn dẹp cache lỗi
-        run: west build -p always -s zmk/app -b nice_nano -- -DSHIELD=filco_bt -DZMK_CONFIG="${GITHUB_WORKSPACE}/config"
-
+        run: |
+          west build -p always -s zmk/app -b nice_nano -- \
+          -DSHIELD=filco_bt \
+          -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
+          -DEXTRA_DTS_BINDINGS="${GITHUB_WORKSPACE}/config/dts/bindings"
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
