@@ -6,6 +6,7 @@
         zmk,matrix_transform = &default_transform;
     };
 
+    /* Ma trận chuyển đổi vị trí phím (17 cột x 6 hàng) */
     default_transform: keymap_transform_0 {
         compatible = "zmk,matrix-transform";
         columns = <17>;
@@ -20,25 +21,13 @@ RC(5,0) RC(5,1) RC(5,2)                         RC(5,6)                         
         >;
     };
 
-    kscan0: kscan_composite {
-        compatible = "zmk,kscan-composite";
-        rows = <6>;
-        columns = <17>;
-
-        // Phần quét phím qua MCP23017
-        mcp_kscan: kscan_mcp {
-            kscan = <&kscan_mcp_impl>;
-        };
-        
-        // Phần quét phím qua chân GPIO trực tiếp của nRF52
-        gpio_kscan: kscan_gpio {
-            kscan = <&kscan_gpio_impl>;
-        };
-    };
-
-    kscan_mcp_impl: kscan_mcp_impl {
+    /* Bộ quét phím Matrix (Hỗ trợ trộn chân trực tiếp) */
+    kscan0: kscan {
         compatible = "zmk,kscan-gpio-matrix";
         diode-direction = "col2row";
+        wakeup-source;
+
+        /* Các hàng nối trực tiếp vào nice_nano (Pro Micro pins) */
         row-gpios
             = <&pro_micro 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
             , <&pro_micro 5 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
@@ -47,6 +36,8 @@ RC(5,0) RC(5,1) RC(5,2)                         RC(5,6)                         
             , <&pro_micro 8 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
             , <&pro_micro 9 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
             ;
+
+        /* 17 Cột: 16 cột đầu từ MCP23017, cột cuối từ nice_nano */
         col-gpios
             = <&mcp23017 0 GPIO_ACTIVE_HIGH>
             , <&mcp23017 1 GPIO_ACTIVE_HIGH>
@@ -64,32 +55,21 @@ RC(5,0) RC(5,1) RC(5,2)                         RC(5,6)                         
             , <&mcp23017 13 GPIO_ACTIVE_HIGH>
             , <&mcp23017 14 GPIO_ACTIVE_HIGH>
             , <&mcp23017 15 GPIO_ACTIVE_HIGH>
+            , <&pro_micro 10 GPIO_ACTIVE_HIGH> /* Cột thứ 17 */
             ;
-    };
-
-    kscan_gpio_impl: kscan_gpio_impl {
-        compatible = "zmk,kscan-gpio-matrix";
-        diode-direction = "col2row";
-        row-gpios
-            = <&pro_micro 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-            , <&pro_micro 5 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-            , <&pro_micro 6 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-            , <&pro_micro 7 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-            , <&pro_micro 8 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-            , <&pro_micro 9 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
-            ;
-        // Chân Column cuối cùng nối vào D10 (Pro Micro pin 10)
-        col-gpios = <&pro_micro 10 GPIO_ACTIVE_HIGH>;
     };
 };
 
+/* Cấu hình I2C cho Chip MCP23017 */
 &pro_micro_i2c {
     status = "okay";
+
     mcp23017: mcp23017@20 {
         compatible = "microchip,mcp230xx";
         reg = <0x20>;
         gpio-controller;
         #gpio-cells = <2>;
         ngpios = <16>;
+        status = "okay";
     };
 };
