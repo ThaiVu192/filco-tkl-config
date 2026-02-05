@@ -30,9 +30,6 @@
         diode-direction = "col2row";
         wakeup-source;
 
-        /* ROWS: use board gpio controller (gpio0)
-           <-- CHANGE these pin numbers to match your wiring if needed -->
-        */
         row-gpios = <
             &gpio0 11 GPIO_ACTIVE_LOW
             &gpio0 12 GPIO_ACTIVE_LOW
@@ -42,7 +39,6 @@
             &gpio0 16 GPIO_ACTIVE_LOW
         >;
 
-        /* COLS: MCP23017 pins 0..15 + one native gpio for last column */
         col-gpios = <
             &mcp23017 0 GPIO_ACTIVE_LOW
             &mcp23017 1 GPIO_ACTIVE_LOW
@@ -60,7 +56,7 @@
             &mcp23017 13 GPIO_ACTIVE_LOW
             &mcp23017 14 GPIO_ACTIVE_LOW
             &mcp23017 15 GPIO_ACTIVE_LOW
-            &gpio0 10          GPIO_ACTIVE_LOW
+            &gpio0 10 GPIO_ACTIVE_LOW
         >;
 
         debounce-press-ms = <5>;

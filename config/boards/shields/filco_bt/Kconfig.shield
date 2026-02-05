@@ -1,4 +1,0 @@
-# app/boards/shields/filco_bt/Kconfig.shield
-menu "Filco BT shield"
-
-endmenu

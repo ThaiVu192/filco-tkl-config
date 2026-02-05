@@ -1,2 +1,0 @@
-# Minimal defconfig for filco_bt shield
-CONFIG_FILCO_TKL_SHIELD=y
