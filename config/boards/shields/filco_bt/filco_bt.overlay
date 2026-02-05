@@ -25,13 +25,14 @@ RC(5,0) RC(5,1) RC(5,2)                         RC(5,6)                         
         rows = <6>;
         columns = <17>;
 
+        // Phần quét phím qua MCP23017
         mcp_kscan: kscan_mcp {
             kscan = <&kscan_mcp_impl>;
         };
         
+        // Phần quét phím qua chân GPIO trực tiếp của nRF52
         gpio_kscan: kscan_gpio {
             kscan = <&kscan_gpio_impl>;
-            column-offset = <16>;
         };
     };
 
@@ -77,6 +78,7 @@ RC(5,0) RC(5,1) RC(5,2)                         RC(5,6)                         
             , <&pro_micro 8 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
             , <&pro_micro 9 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
             ;
+        // Chân Column cuối cùng nối vào D10 (Pro Micro pin 10)
         col-gpios = <&pro_micro 10 GPIO_ACTIVE_HIGH>;
     };
 };

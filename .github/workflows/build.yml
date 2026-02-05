@@ -7,27 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: zmkfirmware/zmk-build-arm:stable
-    name: Build
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Cache west modules
-        uses: actions/cache@v4
-        env:
-          cache-name: cache-zephyr-modules
-        with:
-          path: |
-            modules/
-            tools/
-            zephyr/
-            bootloader/
-            zmk/
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('config/west.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
 
       - name: West Init
         run: west init -l config
@@ -38,15 +20,12 @@ jobs:
       - name: West Zephyr export
         run: west zephyr-export
 
-      - name: West Build (Filco)
-        # CHỈ CẦN TRỎ VÀO CONFIG LÀ ĐỦ
-        run: west build -s zmk/app -b nice_nano -- -DSHIELD=filco_bt -DZMK_CONFIG="${GITHUB_WORKSPACE}/config"
-
-      - name: Rename Firmware
-        run: cp build/zephyr/zmk.uf2 filco_bt.uf2
+      - name: West Build
+        # Dùng --pristine để dọn dẹp cache lỗi
+        run: west build -p always -s zmk/app -b nice_nano -- -DSHIELD=filco_bt -DZMK_CONFIG="${GITHUB_WORKSPACE}/config"
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: filco_bt.uf2
+          path: build/zephyr/zmk.uf2
