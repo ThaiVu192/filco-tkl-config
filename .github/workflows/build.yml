@@ -40,7 +40,7 @@ jobs:
 
       - name: West Build (Filco)
         run: |
-          west build -s zmk/app -b nice_nano_v2 -- \
+          west build -s zmk/app -b nice_nano -- \
           -DSHIELD=filco_bt \
           -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
           -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
