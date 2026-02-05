@@ -21,7 +21,12 @@ jobs:
         run: west zephyr-export
 
       - name: West Build
-        run: west build -s zmk/app -b nice_nano -- -DSHIELD=filco_bt -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
+        run: |
+          west build -s zmk/app -b nice_nano -- \
+          -DSHIELD=filco_bt \
+          -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
+          -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}" \
+          -DSHIELD_AS_MODULE=ON
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
