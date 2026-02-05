@@ -2,12 +2,6 @@ name: Build ZMK Firmware
 
 on:
   push:
-    paths:
-      - ".github/workflows/build.yml"
-      - "config/**"
-      - "boards/shields/**"
-      - "build.yaml"
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -18,24 +12,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache west modules
-        uses: actions/cache@v4
-        env:
-          cache-name: cache-zephyr-modules
-        with:
-          path: |
-            modules/
-            tools/
-            zephyr/
-            bootloader/
-            zmk/
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('config/west.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-
       - name: ZMK Build Action
+        # Sử dụng bản v2 hoặc v3 chính xác từ zmkfirmware
         uses: zmkfirmware/zmk-build-action@v3
         with:
           build_matrix_path: "build.yaml"
@@ -46,4 +24,3 @@ jobs:
         with:
           name: firmware
           path: build/zephyr/zmk.uf2
-          retention-days: 5
