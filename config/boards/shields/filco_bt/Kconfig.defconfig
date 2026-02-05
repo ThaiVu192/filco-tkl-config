@@ -1,0 +1,6 @@
+if SHIELD_FILCO_BT
+
+config ZMK_KEYBOARD_NAME
+    default "Filco Wireless"
+
+endif
