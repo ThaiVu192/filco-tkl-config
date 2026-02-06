@@ -38,7 +38,7 @@ jobs:
       - name: Build firmware
         run: |
           west build \
-            -s zmk/app \
+            -s app \
             -b nice_nano \
             -d build \
             -- \
