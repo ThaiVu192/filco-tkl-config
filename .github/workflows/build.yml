@@ -1,4 +1,4 @@
-name: Build ZMK firmware
+name: Build ZMK firmware (explicit zmk checkout)
 
 on:
   push:
@@ -8,12 +8,61 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout config
-        uses: actions/checkout@v4
+    timeout-minutes: 90
 
-      - name: Build firmware
-        uses: zmkfirmware/zmk-build-action@v1
+    steps:
+      - name: Checkout config repo
+        uses: actions/checkout@v4
         with:
-          board: nice_nano
-          shield: filco_bt
+          submodules: false
+
+      - name: Checkout official ZMK repo into ./zmk
+        uses: actions/checkout@v4
+        with:
+          repository: zmkfirmware/zmk
+          path: zmk
+          # you can pin a branch or tag:
+          # ref: main
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git python3 python3-pip python3-venv \
+            gcc-arm-none-eabi gdb-multiarch \
+            cmake ninja-build \
+            device-tree-compiler \
+            xz-utils unzip build-essential
+
+      - name: Install west
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --upgrade west
+
+      - name: Initialize west workspace (inside zmk) and update
+        working-directory: zmk
+        env:
+          ZEPHYR_BASE: ${{ runner.temp }}/zephyr # optional
+        run: |
+          # 'zmk' repository contains west.yml; initialize workspace here
+          west init -l
+          west update
+          west zephyr-export || true
+
+      - name: Build firmware (nice_nano + filco_bt)
+        working-directory: zmk
+        env:
+          BOARD: nice_nano
+          SHIELD: filco_bt
+          ZMK_CONFIG: ${{ github.workspace }}/config
+        run: |
+          # clean previous builds
+          rm -rf ../build || true
+          # build: use -s app (in zmk repo), build output to parent build dir
+          west build -s app -b ${BOARD} -d ../build -- -DSHIELD=${SHIELD} -DZMK_CONFIG=${ZMK_CONFIG}
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zmk-firmware
+          path: ../build/zephyr/zephyr.hex
